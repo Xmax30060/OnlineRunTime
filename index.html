@@ -671,516 +671,643 @@
 
     <script>
         class MobileTaskManager {
-            constructor() {
-                this.tasks = [];
-                this.currentSection = 'planning';
-                this.currentDate = new Date().toISOString().split('T')[0];
-                this.init();
+    constructor() {
+        // Données persistantes en mémoire (remplace localStorage)
+        this.persistentData = {
+            tasks: [],
+            userPreferences: {
+                currentSection: 'planning',
+                selectedDate: new Date().toISOString().split('T')[0],
+                taskFilter: 'all',
+                taskSort: 'time',
+                roomFilter: 'all',
+                frequencyFilter: 'all',
+                userName: 'Utilisateur',
+                planningView: 'day'
             }
-
-            init() {
-                this.setupEventListeners();
-                this.loadTasks();
-                this.updateCurrentDate();
-                this.updateUI();
-                this.generateSchedule();
-                this.setupAutoSave();
-            }
-
-            setupEventListeners() {
-                // Navigation
-                document.querySelectorAll('.nav-tab').forEach(tab => {
-                    tab.addEventListener('click', (e) => {
-                        this.switchSection(e.target.dataset.section);
-                    });
-                });
-
-                // Add button
-                document.getElementById('addBtn').addEventListener('click', () => this.showModal());
-                
-                // Modal
-                document.getElementById('cancelBtn').addEventListener('click', () => this.hideModal());
-                document.getElementById('taskForm').addEventListener('submit', (e) => this.handleSubmit(e));
-                document.getElementById('modal').addEventListener('click', (e) => {
-                    if (e.target.id === 'modal') this.hideModal();
-                });
-
-                // Filters
-                document.getElementById('taskFilter').addEventListener('change', () => this.updateTasksList());
-                document.getElementById('taskSort').addEventListener('change', () => this.updateTasksList());
-                document.getElementById('roomFilter').addEventListener('change', () => this.updateMenageList());
-                document.getElementById('frequencyFilter').addEventListener('change', () => this.updateMenageList());
-                document.getElementById('planningDate').addEventListener('change', () => this.generateSchedule());
-
-                // Category change
-                document.getElementById('taskCategory').addEventListener('change', (e) => {
-                    document.getElementById('roomGroup').style.display = 
-                        e.target.value === 'menage' ? 'block' : 'none';
-                });
-
-                // Set default values
-                document.getElementById('taskDate').value = this.currentDate;
-                document.getElementById('planningDate').value = this.currentDate;
-            }
-
-            switchSection(section) {
-                // Update navigation
-                document.querySelectorAll('.nav-tab').forEach(tab => {
-                    tab.classList.remove('active');
-                });
-                document.querySelector(`[data-section="${section}"]`).classList.add('active');
-
-                // Update content
-                document.querySelectorAll('.content-section').forEach(sec => {
-                    sec.classList.remove('active');
-                });
-                document.getElementById(section).classList.add('active');
-
-                this.currentSection = section;
-                this.updateUI();
-            }
-
-            showModal(task = null) {
-                const modal = document.getElementById('modal');
-                const title = document.getElementById('modalTitle');
-                const submitBtn = document.getElementById('submitBtn');
-                
-                if (task) {
-                    title.textContent = 'Modifier la tâche';
-                    submitBtn.textContent = 'Modifier';
-                    this.fillForm(task);
-                } else {
-                    title.textContent = 'Nouvelle tâche';
-                    submitBtn.textContent = 'Ajouter';
-                    this.resetForm();
-                }
-
-                modal.style.display = 'block';
-                document.body.style.overflow = 'hidden';
-            }
-
-            hideModal() {
-                document.getElementById('modal').style.display = 'none';
-                document.body.style.overflow = 'auto';
-                this.resetForm();
-            }
-
-            fillForm(task) {
-                document.getElementById('taskId').value = task.id || '';
-                document.getElementById('taskTitle').value = task.title || '';
-                document.getElementById('taskTime').value = task.time || '';
-                document.getElementById('taskDate').value = task.date || '';
-                document.getElementById('taskCategory').value = task.category || 'general';
-                document.getElementById('taskRoom').value = task.room || 'cuisine';
-                document.getElementById('taskFrequency').value = task.frequency || 'once';
-                document.getElementById('taskReminder').checked = task.reminder || false;
-                
-                // Show room field if category is menage
-                document.getElementById('roomGroup').style.display = 
-                    task.category === 'menage' ? 'block' : 'none';
-            }
-
-            resetForm() {
-                document.getElementById('taskForm').reset();
-                document.getElementById('taskDate').value = this.currentDate;
-                document.getElementById('taskId').value = '';
-                document.getElementById('roomGroup').style.display = 'none';
-            }
-
-            handleSubmit(e) {
-                e.preventDefault();
-                
-                const taskId = document.getElementById('taskId').value;
-                const task = {
-                    id: taskId || Date.now() + Math.random(),
-                    title: document.getElementById('taskTitle').value,
-                    time: document.getElementById('taskTime').value,
-                    date: document.getElementById('taskDate').value,
-                    category: document.getElementById('taskCategory').value,
-                    room: document.getElementById('taskRoom').value,
-                    frequency: document.getElementById('taskFrequency').value,
-                    reminder: document.getElementById('taskReminder').checked,
-                    completed: false,
-                    createdAt: new Date().toISOString()
-                };
-
-                if (taskId) {
-                    this.updateTask(task);
-                } else {
-                    this.addTask(task);
-                }
-                
-                this.hideModal();
-            }
-
-            addTask(task) {
-                this.tasks.push(task);
-                this.saveTasks();
-                this.updateUI();
-                this.generateSchedule();
-            }
-
-            updateTask(updatedTask) {
-                const index = this.tasks.findIndex(t => t.id == updatedTask.id);
-                if (index !== -1) {
-                    this.tasks[index] = { ...this.tasks[index], ...updatedTask };
-                    this.saveTasks();
-                    this.updateUI();
-                    this.generateSchedule();
-                }
-            }
-
-            toggleTask(taskId) {
-                const task = this.tasks.find(t => t.id == taskId);
-                if (task) {
-                    task.completed = !task.completed;
-                    this.saveTasks();
-                    this.updateUI();
-                    this.generateSchedule();
-                }
-            }
-
-            deleteTask(taskId) {
-                if (confirm('Êtes-vous sûr de vouloir supprimer cette tâche ?')) {
-                    this.tasks = this.tasks.filter(t => t.id != taskId);
-                    this.saveTasks();
-                    this.updateUI();
-                    this.generateSchedule();
-                }
-            }
-
-            editTask(taskId) {
-                const task = this.tasks.find(t => t.id == taskId);
-                if (task) {
-                    this.showModal(task);
-                }
-            }
-
-            loadTasks() {
-                const savedTasks = 
-this.persistentData = {
-    tasks: [],
-    userPreferences: {
-        currentSection: 'planning',
-        selectedDate: new Date().toISOString().split('T')[0],
-        filters: {},
-        userName: 'Utilisateur'
+        };
+        
+        this.currentDate = new Date().toISOString().split('T')[0];
+        this.init();
     }
-};
-                if (savedTasks) {
-                    try {
-                        this.tasks = JSON.parse(savedTasks);
-                    } catch (e) {
-                        console.error('Erreur lors du chargement des tâches:', e);
-                        this.tasks = [];
-                    }
-                }
-            }
 
-            saveTasks() {
-                localStorage.setItem('runtime_tasks', JSON.stringify(this.tasks));
-            }
+    init() {
+        this.setupEventListeners();
+        this.loadInitialData();
+        this.updateCurrentDate();
+        this.restoreUserState();
+        this.updateAllViews();
+        this.setupAutoSave();
+    }
 
-            updateCurrentDate() {
-                const options = { 
-                    weekday: 'long', 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                };
-                document.getElementById('currentDate').textContent = 
-                    new Date().toLocaleDateString('fr-FR', options);
-            }
-
-            updateUI() {
-                switch (this.currentSection) {
-                    case 'planning':
-                        this.generateSchedule();
-                        break;
-                    case 'tasks':
-                        this.updateTasksList();
-                        break;
-                    case 'menage':
-                        this.updateMenageList();
-                        break;
-                }
-            }
-
-            generateSchedule() {
-                const container = document.getElementById('scheduleGrid');
-                const selectedDate = document.getElementById('planningDate').value;
-                
-                container.innerHTML = '';
-                
-                // Generate time slots from 6:00 to 23:00
-                for (let hour = 6; hour <= 23; hour++) {
-                    const timeSlot = document.createElement('div');
-                    timeSlot.className = 'time-slot';
-                    timeSlot.textContent = `${hour.toString().padStart(2, '0')}:00`;
-                    container.appendChild(timeSlot);
-                    
-                    const scheduleSlot = document.createElement('div');
-                    scheduleSlot.className = 'schedule-slot';
-                    scheduleSlot.dataset.hour = hour;
-                    
-                    // Find tasks for this hour and date
-                    const tasksForSlot = this.tasks.filter(task => {
-                        if (task.date !== selectedDate) return false;
-                        const taskHour = parseInt(task.time.split(':')[0]);
-                        return taskHour === hour;
-                    });
-                    
-                    tasksForSlot.forEach(task => {
-                        const taskElement = document.createElement('div');
-                        taskElement.className = `schedule-task ${task.completed ? 'completed' : ''}`;
-                        taskElement.textContent = `${task.time} - ${task.title}`;
-                        taskElement.onclick = (e) => {
-                            e.stopPropagation();
-                            this.editTask(task.id);
-                        };
-                        scheduleSlot.appendChild(taskElement);
-                    });
-                    
-                    scheduleSlot.onclick = () => {
-                        // Pre-fill time when clicking on empty slot
-                        document.getElementById('taskTime').value = `${hour.toString().padStart(2, '0')}:00`;
-                        document.getElementById('taskDate').value = selectedDate;
-                        this.showModal();
-                    };
-                    
-                    container.appendChild(scheduleSlot);
-                }
-            }
-
-            updateTasksList() {
-                const container = document.getElementById('tasksContainer');
-                const emptyState = document.getElementById('emptyState');
-                const filter = document.getElementById('taskFilter').value;
-                const sort = document.getElementById('taskSort').value;
-                
-                let filteredTasks = this.tasks.filter(task => task.category !== 'menage');
-                
-                // Apply filters
-                switch (filter) {
-                    case 'pending':
-                        filteredTasks = filteredTasks.filter(task => !task.completed);
-                        break;
-                    case 'completed':
-                        filteredTasks = filteredTasks.filter(task => task.completed);
-                        break;
-                    case 'today':
-                        filteredTasks = filteredTasks.filter(task => task.date === this.currentDate);
-                        break;
-                }
-                
-                // Apply sorting
-                filteredTasks.sort((a, b) => {
-                    switch (sort) {
-                        case 'time':
-                            return a.time.localeCompare(b.time);
-                        case 'date':
-                            return a.date.localeCompare(b.date);
-                        case 'title':
-                            return a.title.localeCompare(b.title);
-                        default:
-                            return 0;
-                    }
-                });
-                
-                if (filteredTasks.length === 0) {
-                    emptyState.style.display = 'block';
-                    container.innerHTML = '';
-                    container.appendChild(emptyState);
-                    return;
-                }
-
-                emptyState.style.display = 'none';
-                container.innerHTML = '';
-                
-                filteredTasks.forEach(task => {
-                    const taskElement = this.createTaskElement(task);
-                    container.appendChild(taskElement);
-                });
-            }
-
-            updateMenageList() {
-                const container = document.getElementById('menageContainer');
-                const emptyState = document.getElementById('emptyStateMenage');
-                const roomFilter = document.getElementById('roomFilter').value;
-                const frequencyFilter = document.getElementById('frequencyFilter').value;
-                
-                let filteredTasks = this.tasks.filter(task => task.category === 'menage');
-                
-                // Apply filters
-                if (roomFilter !== 'all') {
-                    filteredTasks = filteredTasks.filter(task => task.room === roomFilter);
-                }
-                
-                if (frequencyFilter !== 'all') {
-                    filteredTasks = filteredTasks.filter(task => task.frequency === frequencyFilter);
-                }
-                
-                // Sort by time
-                filteredTasks.sort((a, b) => {
-                    if (a.date !== b.date) return a.date.localeCompare(b.date);
-                    return a.time.localeCompare(b.time);
-                });
-                
-                if (filteredTasks.length === 0) {
-                    emptyState.style.display = 'block';
-                    container.innerHTML = '';
-                    container.appendChild(emptyState);
-                    return;
-                }
-
-                emptyState.style.display = 'none';
-                container.innerHTML = '';
-                
-                filteredTasks.forEach(task => {
-                    const taskElement = this.createTaskElement(task, true);
-                    container.appendChild(taskElement);
-                });
-            }
-
-            createTaskElement(task, isMenage = false) {
-                const taskCard = document.createElement('div');
-                taskCard.className = `task-card ${task.completed ? 'completed' : ''}`;
-                
-                const frequencyLabels = {
-                    once: 'Une fois',
-                    daily: 'Quotidien',
-                    weekly: 'Hebdomadaire',
-                    monthly: 'Mensuel'
-                };
-
-                const categoryLabels = {
-                    general: '📝 Général',
-                    work: '💼 Travail',
-                    personal: '👤 Personnel',
-                    menage: '🏠 Ménage'
-                };
-
-                const roomLabels = {
-                    cuisine: '🍳 Cuisine',
-                    salon: '🛋️ Salon',
-                    chambre: '🛏️ Chambre',
-                    salle_de_bain: '🚿 Salle de bain'
-                };
-
-                const formatDate = (dateStr) => {
-                    const date = new Date(dateStr);
-                    const today = new Date();
-                    const tomorrow = new Date(today);
-                    tomorrow.setDate(today.getDate() + 1);
-                    
-                    if (dateStr === today.toISOString().split('T')[0]) return "Aujourd'hui";
-                    if (dateStr === tomorrow.toISOString().split('T')[0]) return "Demain";
-                    return date.toLocaleDateString('fr-FR');
-                };
-
-                taskCard.innerHTML = `
-                    <div class="task-header">
-                        <div class="task-title">${task.title}</div>
-                        <div class="task-time">${task.time}</div>
-                    </div>
-                    <div class="task-details">
-                        <div class="task-detail">
-                            📅 ${formatDate(task.date)}
-                        </div>
-                        <div class="task-detail">
-                            ${categoryLabels[task.category] || '📝 Général'}
-                        </div>
-                        ${isMenage && task.room ? `<div class="task-detail">${roomLabels[task.room]}</div>` : ''}
-                        <div class="task-detail">
-                            🔄 ${frequencyLabels[task.frequency]}
-                        </div>
-                        <div class="task-detail">
-                            ${task.reminder ? '⏰ Rappel' : '🔕 Pas de rappel'}
-                        </div>
-                    </div>
-                    <div class="task-actions">
-                        <div class="task-checkbox ${task.completed ? 'checked' : ''}" onclick="taskManager.toggleTask('${task.id}')">
-                            ${task.completed ? '✓' : ''}
-                        </div>
-                        <div class="task-buttons">
-                            <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;" onclick="taskManager.editTask('${task.id}')">Modifier</button>
-                            <button class="delete-btn" onclick="taskManager.deleteTask('${task.id}')">🗑️</button>
-                        </div>
-                    </div>
-                `;
-
-                return taskCard;
-            }
-
-            setupAutoSave() {
-                // Auto-save every 30 seconds
-                setInterval(() => {
-                    this.saveTasks();
-                }, 30000);
-
-                // Save before page unload
-                window.addEventListener('beforeunload', () => {
-                    this.saveTasks();
-                });
-            }
-        }
-
-        // Initialize the app
-        const taskManager = new MobileTaskManager();
-
-        // Add some sample household tasks if none exist
-        if (taskManager.tasks.length === 0) {
-            const sampleTasks = [
-                {
-                    id: Date.now() + 1,
-                    title: 'Faire la vaisselle',
-                    time: '08:00',
-                    date: new Date().toISOString().split('T')[0],
-                    category: 'menage',
-                    room: 'cuisine',
-                    frequency: 'daily',
-                    reminder: true,
-                    completed: false,
-                    createdAt: new Date().toISOString()
-                },
-                {
-                    id: Date.now() + 2,
-                    title: 'Passer l\'aspirateur',
-                    time: '14:00',
-                    date: new Date().toISOString().split('T')[0],
-                    category: 'menage',
-                    room: 'salon',
-                    frequency: 'weekly',
-                    reminder: true,
-                    completed: false,
-                    createdAt: new Date().toISOString()
-                },
-                {
-                    id: Date.now() + 3,
-                    title: 'Réunion équipe',
-                    time: '10:00',
-                    date: new Date().toISOString().split('T')[0],
-                    category: 'work',
-                    frequency: 'once',
-                    reminder: true,
-                    completed: false,
-                    createdAt: new Date().toISOString()
-                }
-            ];
-            
-            taskManager.tasks = sampleTasks;
-            taskManager.saveTasks();
-            taskManager.updateUI();
-        }
-
-        // PWA features
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js').catch(() => {
-                    console.log('Service Worker registration failed');
-                });
+    setupEventListeners() {
+        // Navigation
+        document.querySelectorAll('.nav-tab').forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                this.switchSection(e.target.dataset.section);
             });
+        });
+
+        // Add button
+        document.getElementById('addBtn').addEventListener('click', () => this.showModal());
+        
+        // Modal
+        document.getElementById('cancelBtn').addEventListener('click', () => this.hideModal());
+        document.getElementById('taskForm').addEventListener('submit', (e) => this.handleSubmit(e));
+        document.getElementById('modal').addEventListener('click', (e) => {
+            if (e.target.id === 'modal') this.hideModal();
+        });
+
+        // Filters avec sauvegarde automatique
+        document.getElementById('taskFilter').addEventListener('change', (e) => {
+            this.persistentData.userPreferences.taskFilter = e.target.value;
+            this.updateTasksList();
+            this.saveUserPreferences();
+        });
+        
+        document.getElementById('taskSort').addEventListener('change', (e) => {
+            this.persistentData.userPreferences.taskSort = e.target.value;
+            this.updateTasksList();
+            this.saveUserPreferences();
+        });
+        
+        document.getElementById('roomFilter').addEventListener('change', (e) => {
+            this.persistentData.userPreferences.roomFilter = e.target.value;
+            this.updateMenageList();
+            this.saveUserPreferences();
+        });
+        
+        document.getElementById('frequencyFilter').addEventListener('change', (e) => {
+            this.persistentData.userPreferences.frequencyFilter = e.target.value;
+            this.updateMenageList();
+            this.saveUserPreferences();
+        });
+        
+        document.getElementById('planningDate').addEventListener('change', (e) => {
+            this.persistentData.userPreferences.selectedDate = e.target.value;
+            this.generateSchedule();
+            this.saveUserPreferences();
+        });
+
+        document.getElementById('planningView').addEventListener('change', (e) => {
+            this.persistentData.userPreferences.planningView = e.target.value;
+            this.generateSchedule();
+            this.saveUserPreferences();
+        });
+
+        // Category change
+        document.getElementById('taskCategory').addEventListener('change', (e) => {
+            document.getElementById('roomGroup').style.display = 
+                e.target.value === 'menage' ? 'block' : 'none';
+        });
+
+        // User avatar click pour changer le nom
+        document.getElementById('userAvatar').addEventListener('click', () => {
+            this.showUserConfig();
+        });
+
+        // Set default values
+        document.getElementById('taskDate').value = this.currentDate;
+        document.getElementById('planningDate').value = this.currentDate;
+    }
+
+    showUserConfig() {
+        const currentName = this.persistentData.userPreferences.userName;
+        const userName = prompt("Votre nom :", currentName);
+        if (userName && userName.trim()) {
+            this.persistentData.userPreferences.userName = userName.trim();
+            document.getElementById('userName').textContent = userName.trim();
+            document.getElementById('userAvatar').textContent = userName.trim().charAt(0).toUpperCase();
+            this.saveUserPreferences();
         }
+    }
+
+    switchSection(section) {
+        // Update navigation
+        document.querySelectorAll('.nav-tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        document.querySelector(`[data-section="${section}"]`).classList.add('active');
+
+        // Update content
+        document.querySelectorAll('.content-section').forEach(sec => {
+            sec.classList.remove('active');
+        });
+        document.getElementById(section).classList.add('active');
+
+        this.persistentData.userPreferences.currentSection = section;
+        this.updateCurrentView();
+        this.saveUserPreferences();
+    }
+
+    showModal(task = null) {
+        const modal = document.getElementById('modal');
+        const title = document.getElementById('modalTitle');
+        const submitBtn = document.getElementById('submitBtn');
+        
+        if (task) {
+            title.textContent = 'Modifier la tâche';
+            submitBtn.textContent = 'Modifier';
+            this.fillForm(task);
+        } else {
+            title.textContent = 'Nouvelle tâche';
+            submitBtn.textContent = 'Ajouter';
+            this.resetForm();
+            
+            // Pré-remplir selon la section active
+            const currentSection = this.persistentData.userPreferences.currentSection;
+            if (currentSection === 'menage') {
+                document.getElementById('taskCategory').value = 'menage';
+                document.getElementById('roomGroup').style.display = 'block';
+            }
+        }
+
+        modal.style.display = 'block';
+        document.body.style.overflow = 'hidden';
+    }
+
+    hideModal() {
+        document.getElementById('modal').style.display = 'none';
+        document.body.style.overflow = 'auto';
+        this.resetForm();
+    }
+
+    fillForm(task) {
+        document.getElementById('taskId').value = task.id || '';
+        document.getElementById('taskTitle').value = task.title || '';
+        document.getElementById('taskTime').value = task.time || '';
+        document.getElementById('taskDate').value = task.date || '';
+        document.getElementById('taskCategory').value = task.category || 'general';
+        document.getElementById('taskRoom').value = task.room || 'cuisine';
+        document.getElementById('taskFrequency').value = task.frequency || 'once';
+        document.getElementById('taskReminder').checked = task.reminder || false;
+        
+        // Show room field if category is menage
+        document.getElementById('roomGroup').style.display = 
+            task.category === 'menage' ? 'block' : 'none';
+    }
+
+    resetForm() {
+        document.getElementById('taskForm').reset();
+        document.getElementById('taskDate').value = this.persistentData.userPreferences.selectedDate;
+        document.getElementById('taskId').value = '';
+        document.getElementById('roomGroup').style.display = 'none';
+    }
+
+    handleSubmit(e) {
+        e.preventDefault();
+        
+        const taskId = document.getElementById('taskId').value;
+        const task = {
+            id: taskId || Date.now() + Math.random(),
+            title: document.getElementById('taskTitle').value,
+            time: document.getElementById('taskTime').value,
+            date: document.getElementById('taskDate').value,
+            category: document.getElementById('taskCategory').value,
+            room: document.getElementById('taskRoom').value,
+            frequency: document.getElementById('taskFrequency').value,
+            reminder: document.getElementById('taskReminder').checked,
+            completed: false,
+            createdAt: new Date().toISOString()
+        };
+
+        if (taskId) {
+            this.updateTask(task);
+        } else {
+            this.addTask(task);
+        }
+        
+        this.hideModal();
+    }
+
+    addTask(task) {
+        this.persistentData.tasks.push(task);
+        this.updateAllViews();
+        this.saveUserPreferences();
+        
+        // Animation de confirmation
+        this.showNotification('Tâche ajoutée avec succès!');
+    }
+
+    updateTask(updatedTask) {
+        const index = this.persistentData.tasks.findIndex(t => t.id == updatedTask.id);
+        if (index !== -1) {
+            this.persistentData.tasks[index] = { ...this.persistentData.tasks[index], ...updatedTask };
+            this.updateAllViews();
+            this.saveUserPreferences();
+            this.showNotification('Tâche modifiée avec succès!');
+        }
+    }
+
+    toggleTask(taskId) {
+        const task = this.persistentData.tasks.find(t => t.id == taskId);
+        if (task) {
+            task.completed = !task.completed;
+            this.updateAllViews();
+            this.saveUserPreferences();
+            
+            const message = task.completed ? 'Tâche terminée!' : 'Tâche réactivée!';
+            this.showNotification(message);
+        }
+    }
+
+    deleteTask(taskId) {
+        if (confirm('Êtes-vous sûr de vouloir supprimer cette tâche ?')) {
+            this.persistentData.tasks = this.persistentData.tasks.filter(t => t.id != taskId);
+            this.updateAllViews();
+            this.saveUserPreferences();
+            this.showNotification('Tâche supprimée!');
+        }
+    }
+
+    editTask(taskId) {
+        const task = this.persistentData.tasks.find(t => t.id == taskId);
+        if (task) {
+            this.showModal(task);
+        }
+    }
+
+    loadInitialData() {
+        // Simuler le chargement des données (remplace localStorage)
+        // En production, vous pourriez charger depuis une API
+        console.log('Données chargées depuis la mémoire');
+    }
+
+    saveUserPreferences() {
+        // En production, vous pourriez sauvegarder sur un serveur
+        console.log('Préférences sauvegardées:', this.persistentData.userPreferences);
+    }
+
+    restoreUserState() {
+        const prefs = this.persistentData.userPreferences;
+        
+        // Restaurer l'état de l'interface
+        document.getElementById('userName').textContent = prefs.userName;
+        document.getElementById('userAvatar').textContent = prefs.userName.charAt(0).toUpperCase();
+        
+        // Restaurer les filtres
+        document.getElementById('taskFilter').value = prefs.taskFilter;
+        document.getElementById('taskSort').value = prefs.taskSort;
+        document.getElementById('roomFilter').value = prefs.roomFilter;
+        document.getElementById('frequencyFilter').value = prefs.frequencyFilter;
+        document.getElementById('planningDate').value = prefs.selectedDate;
+        document.getElementById('planningView').value = prefs.planningView;
+        
+        // Restaurer la section active
+        this.switchSection(prefs.currentSection);
+    }
+
+    updateCurrentDate() {
+        const options = { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+        };
+        document.getElementById('currentDate').textContent = 
+            new Date().toLocaleDateString('fr-FR', options);
+    }
+
+    updateAllViews() {
+        this.generateSchedule();
+        this.updateTasksList();
+        this.updateMenageList();
+    }
+
+    updateCurrentView() {
+        const currentSection = this.persistentData.userPreferences.currentSection;
+        switch (currentSection) {
+            case 'planning':
+                this.generateSchedule();
+                break;
+            case 'tasks':
+                this.updateTasksList();
+                break;
+            case 'menage':
+                this.updateMenageList();
+                break;
+        }
+    }
+
+    generateSchedule() {
+        const container = document.getElementById('scheduleGrid');
+        const selectedDate = this.persistentData.userPreferences.selectedDate;
+        
+        container.innerHTML = '';
+        
+        // Generate time slots from 6:00 to 23:00
+        for (let hour = 6; hour <= 23; hour++) {
+            const timeSlot = document.createElement('div');
+            timeSlot.className = 'time-slot';
+            timeSlot.textContent = `${hour.toString().padStart(2, '0')}:00`;
+            container.appendChild(timeSlot);
+            
+            const scheduleSlot = document.createElement('div');
+            scheduleSlot.className = 'schedule-slot';
+            scheduleSlot.dataset.hour = hour;
+            
+            // Find tasks for this hour and date
+            const tasksForSlot = this.persistentData.tasks.filter(task => {
+                if (task.date !== selectedDate) return false;
+                const taskHour = parseInt(task.time.split(':')[0]);
+                return taskHour === hour;
+            });
+            
+            tasksForSlot.forEach(task => {
+                const taskElement = document.createElement('div');
+                taskElement.className = `schedule-task ${task.completed ? 'completed' : ''}`;
+                taskElement.textContent = `${task.time} - ${task.title}`;
+                taskElement.onclick = (e) => {
+                    e.stopPropagation();
+                    this.editTask(task.id);
+                };
+                scheduleSlot.appendChild(taskElement);
+            });
+            
+            scheduleSlot.onclick = () => {
+                // Pre-fill time when clicking on empty slot
+                document.getElementById('taskTime').value = `${hour.toString().padStart(2, '0')}:00`;
+                document.getElementById('taskDate').value = selectedDate;
+                this.showModal();
+            };
+            
+            container.appendChild(scheduleSlot);
+        }
+    }
+
+    updateTasksList() {
+        const container = document.getElementById('tasksContainer');
+        const emptyState = document.getElementById('emptyState');
+        const filter = this.persistentData.userPreferences.taskFilter;
+        const sort = this.persistentData.userPreferences.taskSort;
+        
+        let filteredTasks = this.persistentData.tasks.filter(task => task.category !== 'menage');
+        
+        // Apply filters
+        switch (filter) {
+            case 'pending':
+                filteredTasks = filteredTasks.filter(task => !task.completed);
+                break;
+            case 'completed':
+                filteredTasks = filteredTasks.filter(task => task.completed);
+                break;
+            case 'today':
+                filteredTasks = filteredTasks.filter(task => task.date === this.currentDate);
+                break;
+        }
+        
+        // Apply sorting
+        filteredTasks.sort((a, b) => {
+            switch (sort) {
+                case 'time':
+                    return a.time.localeCompare(b.time);
+                case 'date':
+                    return a.date.localeCompare(b.date);
+                case 'title':
+                    return a.title.localeCompare(b.title);
+                default:
+                    return 0;
+            }
+        });
+        
+        if (filteredTasks.length === 0) {
+            emptyState.style.display = 'block';
+            container.innerHTML = '';
+            container.appendChild(emptyState);
+            return;
+        }
+
+        emptyState.style.display = 'none';
+        container.innerHTML = '';
+        
+        filteredTasks.forEach(task => {
+            const taskElement = this.createTaskElement(task);
+            container.appendChild(taskElement);
+        });
+    }
+
+    updateMenageList() {
+        const container = document.getElementById('menageContainer');
+        const emptyState = document.getElementById('emptyStateMenage');
+        const roomFilter = this.persistentData.userPreferences.roomFilter;
+        const frequencyFilter = this.persistentData.userPreferences.frequencyFilter;
+        
+        let filteredTasks = this.persistentData.tasks.filter(task => task.category === 'menage');
+        
+        // Apply filters
+        if (roomFilter !== 'all') {
+            filteredTasks = filteredTasks.filter(task => task.room === roomFilter);
+        }
+        
+        if (frequencyFilter !== 'all') {
+            filteredTasks = filteredTasks.filter(task => task.frequency === frequencyFilter);
+        }
+        
+        // Sort by time
+        filteredTasks.sort((a, b) => {
+            if (a.date !== b.date) return a.date.localeCompare(b.date);
+            return a.time.localeCompare(b.time);
+        });
+        
+        if (filteredTasks.length === 0) {
+            emptyState.style.display = 'block';
+            container.innerHTML = '';
+            container.appendChild(emptyState);
+            return;
+        }
+
+        emptyState.style.display = 'none';
+        container.innerHTML = '';
+        
+        filteredTasks.forEach(task => {
+            const taskElement = this.createTaskElement(task, true);
+            container.appendChild(taskElement);
+        });
+    }
+
+    createTaskElement(task, isMenage = false) {
+        const taskCard = document.createElement('div');
+        taskCard.className = `task-card ${task.completed ? 'completed' : ''}`;
+        
+        const frequencyLabels = {
+            once: 'Une fois',
+            daily: 'Quotidien',
+            weekly: 'Hebdomadaire',
+            monthly: 'Mensuel'
+        };
+
+        const categoryLabels = {
+            general: '📝 Général',
+            work: '💼 Travail',
+            personal: '👤 Personnel',
+            menage: '🏠 Ménage'
+        };
+
+        const roomLabels = {
+            cuisine: '🍳 Cuisine',
+            salon: '🛋️ Salon',
+            chambre: '🛏️ Chambre',
+            salle_de_bain: '🚿 Salle de bain'
+        };
+
+        const formatDate = (dateStr) => {
+            const date = new Date(dateStr);
+            const today = new Date();
+            const tomorrow = new Date(today);
+            tomorrow.setDate(today.getDate() + 1);
+            
+            if (dateStr === today.toISOString().split('T')[0]) return "Aujourd'hui";
+            if (dateStr === tomorrow.toISOString().split('T')[0]) return "Demain";
+            return date.toLocaleDateString('fr-FR');
+        };
+
+        taskCard.innerHTML = `
+            <div class="task-header">
+                <div class="task-title">${task.title}</div>
+                <div class="task-time">${task.time}</div>
+            </div>
+            <div class="task-details">
+                <div class="task-detail">
+                    📅 ${formatDate(task.date)}
+                </div>
+                <div class="task-detail">
+                    ${categoryLabels[task.category] || '📝 Général'}
+                </div>
+                ${isMenage && task.room ? `<div class="task-detail">${roomLabels[task.room]}</div>` : ''}
+                <div class="task-detail">
+                    🔄 ${frequencyLabels[task.frequency]}
+                </div>
+                <div class="task-detail">
+                    ${task.reminder ? '⏰ Rappel' : '🔕 Pas de rappel'}
+                </div>
+            </div>
+            <div class="task-actions">
+                <div class="task-checkbox ${task.completed ? 'checked' : ''}" onclick="taskManager.toggleTask('${task.id}')">
+                    ${task.completed ? '✓' : ''}
+                </div>
+                <div class="task-buttons">
+                    <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;" onclick="taskManager.editTask('${task.id}')">Modifier</button>
+                    <button class="delete-btn" onclick="taskManager.deleteTask('${task.id}')">🗑️</button>
+                </div>
+            </div>
+        `;
+
+        return taskCard;
+    }
+
+    showNotification(message) {
+        // Créer une notification temporaire
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 100px;
+            right: 20px;
+            background: #4caf50;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            z-index: 1000;
+            font-size: 0.9rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            animation: slideInRight 0.3s ease;
+        `;
+        notification.textContent = message;
+        
+        document.body.appendChild(notification);
+        
+        // Supprimer après 3 secondes
+        setTimeout(() => {
+            notification.style.animation = 'slideOutRight 0.3s ease';
+            setTimeout(() => {
+                if (document.body.contains(notification)) {
+                    document.body.removeChild(notification);
+                }
+            }, 300);
+        }, 3000);
+    }
+
+    setupAutoSave() {
+        // Auto-save every 30 seconds
+        setInterval(() => {
+            this.saveUserPreferences();
+        }, 30000);
+
+        // Save before page unload
+        window.addEventListener('beforeunload', () => {
+            this.saveUserPreferences();
+        });
+    }
+}
+
+// Initialize the app
+const taskManager = new MobileTaskManager();
+
+// Add some sample household tasks if none exist
+if (taskManager.persistentData.tasks.length === 0) {
+    const sampleTasks = [
+        {
+            id: Date.now() + 1,
+            title: 'Faire la vaisselle',
+            time: '08:00',
+            date: new Date().toISOString().split('T')[0],
+            category: 'menage',
+            room: 'cuisine',
+            frequency: 'daily',
+            reminder: true,
+            completed: false,
+            createdAt: new Date().toISOString()
+        },
+        {
+            id: Date.now() + 2,
+            title: 'Passer l\'aspirateur',
+            time: '14:00',
+            date: new Date().toISOString().split('T')[0],
+            category: 'menage',
+            room: 'salon',
+            frequency: 'weekly',
+            reminder: true,
+            completed: false,
+            createdAt: new Date().toISOString()
+        },
+        {
+            id: Date.now() + 3,
+            title: 'Réunion équipe',
+            time: '10:00',
+            date: new Date().toISOString().split('T')[0],
+            category: 'work',
+            frequency: 'once',
+            reminder: true,
+            completed: false,
+            createdAt: new Date().toISOString()
+        }
+    ];
+    
+    taskManager.persistentData.tasks = sampleTasks;
+    taskManager.updateAllViews();
+}
+
+// PWA features
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(() => {
+            console.log('Service Worker registration failed');
+        });
+    });
+}
+
+// Ajouter les animations CSS manquantes
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideInRight {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes slideOutRight {
+        from { transform: translateX(0); opacity: 1; }
+        to { transform: translateX(100%); opacity: 0; }
+    }
+`;
+document.head.appendChild(style);
     </script>
 </body>
 </html>
