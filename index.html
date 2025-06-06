@@ -857,7 +857,16 @@
             }
 
             loadTasks() {
-                const savedTasks = localStorage.getItem('runtime_tasks');
+                const savedTasks = 
+this.persistentData = {
+    tasks: [],
+    userPreferences: {
+        currentSection: 'planning',
+        selectedDate: new Date().toISOString().split('T')[0],
+        filters: {},
+        userName: 'Utilisateur'
+    }
+};
                 if (savedTasks) {
                     try {
                         this.tasks = JSON.parse(savedTasks);
