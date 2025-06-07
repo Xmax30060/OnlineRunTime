@@ -889,6 +889,8 @@
         
         // Animation de confirmation
         this.showNotification('Tâche ajoutée avec succès!');
+        this.currentDate = new Date().toISOString().split('T')[0];
+        this.init();
     }
 
     updateTask(updatedTask) {
