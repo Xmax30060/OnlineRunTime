@@ -881,7 +881,8 @@
     }
 
     addTask(task) {
-        this.persistentData.tasks.push(task);
+        taskManager.persistentData.tasks.push(task);
+        //taskManager.persistentData.tasks = task;
         this.updateAllViews();
         this.saveUserPreferences();
         
