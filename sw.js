@@ -4,8 +4,8 @@ const FILES_TO_CACHE = [
   '/index.html',
   '/styles.css',
   '/app.js',
-  '/icons/logo.svg',
-  '/icons/logo.svg'
+  '/icons/logo.png',
+  '/icons/logo.png'
 ];
 
 // Installation du Service Worker
