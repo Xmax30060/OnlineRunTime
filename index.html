@@ -912,13 +912,28 @@
     }
 
     deleteTask(taskId) {
-        if (confirm('Êtes-vous sûr de vouloir supprimer cette tâche ?')) {
-            this.persistentData.tasks = this.persistentData.tasks.filter(t => t.id != taskId);
-            this.updateAllViews();
-            this.saveUserPreferences();
-            this.showNotification('Tâche supprimée!');
+        const task = this.persistentData.tasks.find(t => t.id === taskId);
+
+        if (!task) {
+            this.showNotification("Tâche introuvable.", "error");
+            return;
         }
+
+        const confirmation = confirm("Êtes-vous sûr de vouloir supprimer cette tâche ?");
+        if (!confirmation) return;
+
+        // Supprimer la tâche
+        this.persistentData.tasks = this.persistentData.tasks.filter(t => t.id !== taskId);
+
+        // Mettre à jour toutes les vues
+        this.updateAllViews();
+
+        // Sauvegarde + notification
+        this.saveUserPreferences();
+        this.showNotification("Tâche supprimée !");
+        this.updateAllViews();
     }
+
 
     editTask(taskId) {
         const task = this.persistentData.tasks.find(t => t.id == taskId);
@@ -972,6 +987,7 @@
         this.generateSchedule();
         this.updateTasksList();
         this.updateMenageList();
+        this.updateCurrentView();
     }
 
     updateCurrentView() {
