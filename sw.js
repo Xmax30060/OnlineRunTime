@@ -1,7 +1,11 @@
-const CACHE_NAME = 'task-app-cache-v1';
+const CACHE_NAME = 'task-app-cache-v1';Add commentMore actions
 const FILES_TO_CACHE = [
   '/',
-  '/index.html'  
+  '/index.html',
+  '/styles.css',
+  '/app.js',
+  '/icons/logo.svg',
+  '/icons/logo.svg'
 ];
 
 // Installation du Service Worker
@@ -30,7 +34,7 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Intercepter les requêtes réseau
+// Intercepter les requêtes réseauAdd commentMore actions
 self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request).then((response) => {
