@@ -1,11 +1,7 @@
 const CACHE_NAME = 'task-app-cache-v1';
 const FILES_TO_CACHE = [
   '/',
-  '/index.html',
-  '/styles.css',
-  '/app.js',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png'
+  '/index.html'  
 ];
 
 // Installation du Service Worker
